@@ -1,6 +1,7 @@
 ﻿module Calculator.Parser
 
 open System
+open System.Numerics
 open System.Text.RegularExpressions
 
 type Token =
@@ -23,8 +24,10 @@ type BinOpType =
 type Expr =
     | IntLit of int
     | FloatLit of float
+    | ComplexLit of Complex
     | BinExpr of BinOpType * Expr * Expr
     | AppExpr of string * Expr list
+    | JuxExpr of Expr * Expr
 
 let private parseHelper (f: string -> bool * 'T) =
     f
@@ -60,7 +63,7 @@ let (|FIden|_|) str =
     let m = strRegex.Match(str) in
 
     if m.Success then
-        Some(m.Captures[0].Value, m.Captures[0].Value.Length)
+        Some(m.Captures[0].Value[1..], m.Captures[0].Value.Length)
     else
         None
 
@@ -102,6 +105,7 @@ let parse (tks: Token list) =
         match tks with
         | E3(left, Star :: E2(right, s)) -> Some(BinExpr(Times, left, right), s)
         | E3(left, Slash :: E2(right, s)) -> Some(BinExpr(Divide, left, right), s)
+        | E3(left, E4(right, s)) -> Some(JuxExpr(left, right), s)
         | E3(expr, s) -> Some(expr, s)
         | _ -> None
 
@@ -111,7 +115,21 @@ let parse (tks: Token list) =
         | Minus :: Natural n :: s -> Some(IntLit -n, s)
         | Float f :: s -> Some(FloatLit f, s)
         | Minus :: Float f :: s -> Some(FloatLit -f, s)
+        | E4(expr, s) -> Some(expr, s)
+        | _ -> None
+    
+    and (|E4|_|) tks =
+        match tks with
+        | E5(left, E4(right, s)) -> Some(JuxExpr(left, right), s)
+        | E5(expr, s) -> Some(expr, s)
+        | _ -> None
+    
+    and (|E5|_|) tks =
+        match tks with
         | LParen :: E1(expr, RParen :: s) -> Some(expr, s)
+        | FIdent "i" :: s -> Some(ComplexLit Complex.ImaginaryOne, s)
+        | FIdent "e" :: s -> Some(FloatLit Math.E, s)
+        | FIdent "pi" :: s -> Some(FloatLit Math.PI, s)
         | FIdent id :: E3(expr, s) -> Some(AppExpr(id, [expr]), s)
         | _ -> None
 

@@ -1,5 +1,6 @@
 ﻿module Calculator.Program
 
+open System.Numerics
 open Calculator.Parser
 open Calculator.MathEngine
 
@@ -18,6 +19,8 @@ let strTk lex =
 
 let strTks = List.fold (fun s tk -> s + strTk tk) ""
 
+let strC (c: Complex) = $"{c.Real}+{c.Imaginary}i"
+
 let rec strAst expr =
     match expr with
     | IntLit n -> $"{n}"
@@ -28,10 +31,12 @@ let rec strAst expr =
         | Times -> $"(* {strAst expr} {strAst expr1})"
         | Divide -> $"(/ {strAst expr} {strAst expr1})"
     | AppExpr(s, exprs) -> $"""({s} {List.fold (fun s q -> s + (strAst q)) "" exprs})"""
+    | ComplexLit complex -> $"{strC complex}"
+    | JuxExpr(expr, expr1) -> $"({strAst expr} {strAst expr1})"
 
 let decimals x = 
     match x with
-    | Complex c -> $"{c.ToString()}"
+    | Complex c -> $"{strC c}"
     | Integer i -> $"{i}"
     | Fraction f -> $"{float f}"
     | Float f -> $"{f}"

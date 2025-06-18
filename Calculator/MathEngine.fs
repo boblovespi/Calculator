@@ -29,16 +29,16 @@ type SmallFrac =
         let gcd = gcd (if frac.n > 0 then frac.n else -frac.n) frac.d in SmallFrac(frac.n / gcd, frac.d / gcd)
 
     static member (*)(a: SmallFrac, b: SmallFrac) =
-        simplify (SmallFrac(a.n * b.n, a.d * b.d))
+        SmallFrac(a.n * b.n, a.d * b.d) |> simplify
 
     static member (/)(a: SmallFrac, b: SmallFrac) =
-        simplify (SmallFrac(a.n * b.d, a.d * b.n))
+        SmallFrac(a.n * b.d, a.d * b.n) |> simplify
 
     static member (+)(a: SmallFrac, b: SmallFrac) =
-        let lcm = lcm a.d b.d in SmallFrac(a.n * lcm / a.d + b.n * lcm / b.d, lcm)
+        let lcm = lcm a.d b.d in SmallFrac(a.n * lcm / a.d + b.n * lcm / b.d, lcm) |> simplify
 
     static member (-)(a: SmallFrac, b: SmallFrac) =
-        let lcm = lcm a.d b.d in SmallFrac(a.n * lcm / a.d - b.n * lcm / b.d, lcm)
+        let lcm = lcm a.d b.d in SmallFrac(a.n * lcm / a.d - b.n * lcm / b.d, lcm) |> simplify
 
     static member op_Implicit(a: SmallFrac) : float = float a.n / float a.d
 
@@ -54,91 +54,64 @@ type k =
     | Float of float
     | Complex of Complex
 
-    static let coerceCDown (x: complex) : k =
+    static member coerceCDown (x: complex) : k =
         if complex.IsRealNumber x then Float(x.Real) else Complex(x)
 
-    static let coerceFDown (x: float) : k = Float(x)
+    static member coerceFDown (x: float) : k = Float(x)
 
-    static let coerceFrDown (x: SmallFrac) =
+    static member coerceFrDown (x: SmallFrac) =
         if x.d = 1 then Integer(x.n) else Fraction(x)
 
-    static let toComplex x =
+    static member toComplex x =
         match x with
         | Integer i -> complex (i, 0)
         | Fraction f -> complex (float f, 0)
         | Float f -> complex (f, 0)
         | Complex c -> c
 
-    static let toFloat x =
+    static member toFloat x =
         match x with
         | Integer i -> float i
         | Fraction f -> SmallFrac.op_Implicit f
         | Float f -> f
         | Complex c -> failwith "complex are not floats!"
 
-    static let toFrac x =
+    static member toFrac x =
         match x with
         | Integer i -> SmallFrac(i, 1)
         | Fraction f -> f
         | Float f -> failwith "floats are not fractions!"
         | Complex c -> failwith "complex are not fractions!"
 
-    static let polyOp opC opF opFr opI (a: k, b: k) : k =
+    static member polyOp opC opF opFr opI (a: k, b: k) : k =
         match (a, b) with
         | Complex a, b
-        | b, Complex a -> coerceCDown (opC a (toComplex b))
+        | b, Complex a -> k.coerceCDown (opC a (k.toComplex b))
         | Float a, b
-        | b, Float a -> coerceFDown (opF a (toFloat b))
+        | b, Float a -> k.coerceFDown (opF a (k.toFloat b))
         | Fraction a, b
-        | b, Fraction a -> coerceFrDown (opFr a (toFrac b))
-        | Integer a, Integer b -> coerceFrDown(opI a b)
+        | b, Fraction a -> k.coerceFrDown (opFr a (k.toFrac b))
+        | Integer a, Integer b -> k.coerceFrDown(opI a b)
 
-    static member (+)(a, b) = polyOp add add add addi (a, b)
-    static member (-)(a, b) = polyOp add add add addi (a, b)
-    static member (*)(a, b) = polyOp mult mult mult multi (a, b)
-    static member (/)(a, b) = polyOp div div div intDiv (a, b)
-
-// let toComplex x =
-//     match x with
-//     | Integer i -> complex (i, 0)
-//     | Fraction f -> complex (float f, 0)
-//     | Float f -> complex (f, 0)
-//     | Complex c -> c
-//
-// let toFloat x =
-//     match x with
-//     | Integer i -> float i
-//     | Fraction f -> float f
-//     | Float f -> f
-//     | Complex c -> failwith "complex are not floats!"
-//
-// let toFrac x =
-//     match x with
-//     | Integer i -> SmallFrac(i, 1)
-//     | Fraction f -> f
-//     | Float f -> failwith "floats are not fractions!"
-//     | Complex c -> failwith "complex are not fractions!"
-//
-// let coerceCDown (x: complex) : k =
-//     if Complex.IsRealNumber x then Float(x.Real) else Complex(x)
-//
-// let coerceFDown (x: float) : k = Float(x)
-//
-// let coerceFrDown (x: SmallFrac) =
-//     if x.d = 1 then Integer(x.n) else Fraction(x)
+    static member (+)(a, b) = k.polyOp add add add addi (a, b)
+    static member (-)(a, b) = k.polyOp add add add addi (a, b)
+    static member (*)(a, b) = k.polyOp mult mult mult multi (a, b)
+    static member (/)(a, b) = k.polyOp div div div intDiv (a, b)
 
 let funCtx func =
     match func with
-    | "\sq" -> fun (x: k list) -> x[0] * x[0]
+    | "sq" -> fun (x: k list) -> x[0] * x[0]
     | s -> failwith "unknown!"
 
 let rec compute expr =
     match expr with
     | IntLit n -> Integer n
     | FloatLit f -> Float f
+    | ComplexLit c -> Complex c
     | BinExpr(Add, left, right) -> compute left + compute right
     | BinExpr(Times, left, right) -> compute left * compute right
     | BinExpr(Divide, left, right) -> compute left / compute right
     | AppExpr(func, expr) -> funCtx func [ compute expr[0] ]
+    | JuxExpr(left, right) -> compute left * compute right
 
 let float (frac: SmallFrac) = float frac.n / float frac.d
