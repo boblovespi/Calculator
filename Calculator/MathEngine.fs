@@ -1,5 +1,6 @@
 ﻿module Calculator.MathEngine
 
+open System
 open System.Numerics
 open Parser
 
@@ -98,9 +99,20 @@ type k =
     static member (*)(a, b) = k.polyOp mult mult mult multi (a, b)
     static member (/)(a, b) = k.polyOp div div div intDiv (a, b)
 
+let fFunc f = k.coerceFDown << f << k.toFloat << fun (x: k list) -> x[0]
+
+let cFunc f = k.coerceCDown << f << k.toComplex << fun (x: k list) -> x[0]
+
 let funCtx func =
     match func with
     | "sq" -> fun (x: k list) -> x[0] * x[0]
+    | "sin" -> fFunc Math.Sin
+    | "cos" -> fFunc Math.Cos
+    | "tan" -> fFunc Math.Tan
+    | "exp" -> cFunc complex.Exp
+    | "sqrt" -> fFunc Math.Sqrt
+    | "cbrt" -> fFunc Math.Cbrt
+    | "log" -> fFunc Math.Log
     | s -> failwith "unknown!"
 
 let rec compute expr =
