@@ -2,36 +2,87 @@
 
 open Avalonia
 open Avalonia.Controls.ApplicationLifetimes
+open Avalonia.Input
 open Avalonia.Themes.Fluent
 open Avalonia.FuncUI.Hosts
 open Avalonia.Controls
 open Avalonia.FuncUI
 open Avalonia.FuncUI.DSL
 
-type State = { expr: string; result: string }
-let init () = { expr = ""; result = "" }
-type Msg = UpdateExpr of string
+type State =
+    { expr: string
+      result: string
+      history: (string * string) list }
 
-let update (UpdateExpr expr) (_state: State) =
-    let parsed = expr |> Parser.lex |> Parser.parse in
+let init () =
+    { expr = ""; result = ""; history = [] }
 
-    match parsed with
-    | None -> { expr = expr; result = "Parse Error" }
-    | Some value ->
-        try
-            let result = MathEngine.compute value in { expr = expr; result = $"{result}" }
-        with _ ->
+type Msg =
+    | UpdateExpr of string
+    | AddToHistory
+
+let update msg (state: State) =
+    match msg with
+    | UpdateExpr expr ->
+        match expr |> Parser.lex |> Parser.parse with
+        | None ->
             { expr = expr
-              result = "Computation Error" }
+              result = "Parse Error"
+              history = state.history }
+        | Some value ->
+            try
+                let result = MathEngine.compute value in
+
+                { expr = expr
+                  result = $"{result}"
+                  history = state.history }
+            with _ ->
+                { expr = expr
+                  result = "Computation Error"
+                  history = state.history }
+    | AddToHistory ->
+        { expr = ""
+          result = ""
+          history = (state.expr, state.result) :: state.history }
 
 let view (state: State) dispatch : Types.IView =
     Border.create
         [ Border.margin 10
           Border.child (
-              StackPanel.create
-                  [ StackPanel.children
-                        [ TextBox.create [ TextBox.text state.expr; TextBox.onTextChanged (UpdateExpr >> dispatch) ]
-                          TextBlock.create [ TextBlock.text state.result ] ] ]
+              DockPanel.create
+                  [ // DockPanel.spacing 10
+                    DockPanel.children
+                        [ TextBox.create
+                              [ TextBox.text state.expr
+                                TextBox.dock Dock.Top
+                                TextBox.onTextChanged (UpdateExpr >> dispatch)
+                                //TextBox.keyBindings [ KeyGesture(Key.Enter).create ]
+                                TextBox.onKeyUp (fun k ->
+                                    match k.PhysicalKey with
+                                    | PhysicalKey.Enter ->
+                                        do
+                                            dispatch AddToHistory
+                                            k.Handled <- true
+                                    | _ -> ()) ]
+                          SelectableTextBlock.create
+                              [ SelectableTextBlock.margin 5
+                                SelectableTextBlock.dock Dock.Top
+                                SelectableTextBlock.text state.result ]
+                          ScrollViewer.create
+                              [ ScrollViewer.content (
+                                    StackPanel.create
+                                        [ StackPanel.spacing 10
+                                          StackPanel.children (
+                                              state.history
+                                              |> List.map (fun (expr, res) ->
+                                                  Button.create
+                                                      [ Button.content $"{expr} = {res}"
+                                                        Button.onClick (
+                                                            (fun _ -> expr |> UpdateExpr |> dispatch),
+                                                            SubPatchOptions.OnChangeOf expr
+                                                        ) ])
+                                          ) ]
+                                ) ] ] ]
           ) ]
 
 type MainWindow() as this =
@@ -40,7 +91,7 @@ type MainWindow() as this =
     do
         base.Title <- "Calculator"
         base.Width <- 400
-        base.Height <- 100
+        base.Height <- 1000
 
         let subscriptions _state =
             let onClosedSub _dispatch =
