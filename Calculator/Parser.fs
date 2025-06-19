@@ -89,7 +89,10 @@ let rec lex (expression: string) =
     match expression with
     | "" -> []
     | s when Char.IsWhiteSpace s[0] -> lex (s[1..])
-    | s -> let (tk, len) = lex1 s in tk :: lex (s[len..])
+    | s -> let (tk, len) = lex1 s in 
+               match tk with
+               | EOF -> []
+               | _ -> tk :: lex(s[len..])
 
 let private negate expr = BinExpr(Times, IntLit -1, expr)
 
@@ -134,5 +137,5 @@ let parse (tks: Token list) =
         | _ -> None
 
     match tks with
-    | E1(expr, _) -> Some expr
+    | E1(expr, []) -> Some expr
     | _ -> None

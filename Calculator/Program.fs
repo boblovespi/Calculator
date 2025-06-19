@@ -1,6 +1,7 @@
 ﻿module Calculator.Program
 
 open System.Numerics
+open Avalonia
 open Calculator.Parser
 open Calculator.MathEngine
 
@@ -34,29 +35,33 @@ let rec strAst expr =
     | ComplexLit complex -> $"{strC complex}"
     | JuxExpr(expr, expr1) -> $"({strAst expr} {strAst expr1})"
 
-let decimals x = 
+let decimals x =
     match x with
     | Complex c -> $"{strC c}"
     | Integer i -> $"{i}"
     | Fraction f -> $"{float f}"
     | Float f -> $"{f}"
-    
+
 
 [<EntryPoint>]
 let main args =
-    printf "hello, world\n"
-    while true do
-        let str = System.Console.ReadLine()
-        let tokens = str |> lex
-        tokens |> strTks |> printf "%s\n"
-        let expr = tokens |> parse
-
-        if expr.IsSome then
-            expr |> Option.map strAst |> Option.iter (printf "%s\n")
-        else
-            printf "uh oh\n"
-
-        if expr.IsSome then
-            let value = compute expr.Value in printf $"{value}, {decimals value}\n"
-
-    0
+    // printf "hello, world\n"
+    // while true do
+    //     let str = System.Console.ReadLine()
+    //     let tokens = str |> lex
+    //     tokens |> strTks |> printf "%s\n"
+    //     let expr = tokens |> parse
+    //
+    //     if expr.IsSome then
+    //         expr |> Option.map strAst |> Option.iter (printf "%s\n")
+    //     else
+    //         printf "uh oh\n"
+    //
+    //     if expr.IsSome then
+    //         let value = compute expr.Value in printf $"{value}, {decimals value}\n"
+    AppBuilder
+        .Configure<App.App>()
+        .UsePlatformDetect()
+        .UseSkia()
+        .With(1)
+        .StartWithClassicDesktopLifetime(args)
